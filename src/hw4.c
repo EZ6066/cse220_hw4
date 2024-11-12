@@ -38,7 +38,8 @@ typedef struct {
 
 typedef struct {
     int width, height;
-    int **board;
+    int **board_player1;  // Player 1's board
+    int **board_player2;  // Player 2's board
     int ships_remaining[2];
     int turn;
     int game_over;
@@ -70,7 +71,7 @@ void initialize_tetris_shapes() {
     // Define the rest of the Tetris shapes and their rotations here.
 }
 
-// Setup game board with given dimensions
+// Setup game board with given dimensions for both players
 void setup_board(int width, int height) {
     game_state.width = width;
     game_state.height = height;
@@ -79,12 +80,17 @@ void setup_board(int width, int height) {
     game_state.ships_remaining[1] = MAX_SHIPS;
     game_state.game_over = 0;
 
-    game_state.board = malloc(height * sizeof(int *));
+    // Initialize two separate boards for Player 1 and Player 2
+    game_state.board_player1 = malloc(height * sizeof(int *));
+    game_state.board_player2 = malloc(height * sizeof(int *));
+    
     for (int i = 0; i < height; i++) {
-        game_state.board[i] = calloc(width, sizeof(int));
+        game_state.board_player1[i] = calloc(width, sizeof(int));  // Player 1's board
+        game_state.board_player2[i] = calloc(width, sizeof(int));  // Player 2's board
     }
 }
 
+// Initialize ships based on the ship data received from the player
 void initialize_ships(Client *client, const char *ship_data) {
     int shape, rotation, x, y;
     const char *ptr = ship_data;
@@ -106,15 +112,27 @@ void initialize_ships(Client *client, const char *ship_data) {
             // Debugging: Log the parsed values
             printf("Parsed ship data: Type %d, Rotation %d, Position (%d, %d)\n", shape, rotation, x, y);
 
-            // Validate and place the ship
-            if (validate_ship_placement(x, y, shape, rotation, client->player_num)) {
-                place_ship(x, y, shape, rotation, client->player_num);
-                ships_placed++;
-                printf("Ship placed: Type %d, Rotation %d, Position (%d, %d)\n", shape, rotation, x, y);
+            // Validate and place the ship based on the player's number
+            if (client->player_num == 1) {
+                if (validate_ship_placement(x, y, shape, rotation, 1)) {
+                    place_ship(x, y, shape, rotation, 1);
+                    ships_placed++;
+                    printf("Player 1 Ship placed: Type %d, Rotation %d, Position (%d, %d)\n", shape, rotation, x, y);
+                } else {
+                    printf("Invalid ship placement for Player 1, Type %d, Rotation %d at Position (%d, %d)\n", shape, rotation, x, y);
+                    send_error(client->socket_fd, ERR_INVALID_PARAMS_INIT);
+                    return;
+                }
             } else {
-                printf("Invalid ship placement for Type %d, Rotation %d at Position (%d, %d)\n", shape, rotation, x, y);
-                send_error(client->socket_fd, ERR_INVALID_PARAMS_INIT);
-                return;
+                if (validate_ship_placement(x, y, shape, rotation, 2)) {
+                    place_ship(x, y, shape, rotation, 2);
+                    ships_placed++;
+                    printf("Player 2 Ship placed: Type %d, Rotation %d, Position (%d, %d)\n", shape, rotation, x, y);
+                } else {
+                    printf("Invalid ship placement for Player 2, Type %d, Rotation %d at Position (%d, %d)\n", shape, rotation, x, y);
+                    send_error(client->socket_fd, ERR_INVALID_PARAMS_INIT);
+                    return;
+                }
             }
         } else {
             // If parsing failed, send an error and stop ship initialization
@@ -139,7 +157,10 @@ void initialize_ships(Client *client, const char *ship_data) {
 }
 
 // Validate the ship placement for the given piece
+// Validate the ship placement for the given piece for both players
 int validate_ship_placement(int x, int y, int shape, int rotation, int player) {
+    int **board = (player == 1) ? game_state.board_player1 : game_state.board_player2;
+    
     for (int i = 0; i < 4; i++) {
         int dx = shapes[shape].rotations[rotation][i][0];
         int dy = shapes[shape].rotations[rotation][i][1];
@@ -147,7 +168,7 @@ int validate_ship_placement(int x, int y, int shape, int rotation, int player) {
         int ny = y + dy;
 
         // Check if the ship is within bounds and doesn't overlap
-        if (nx < 0 || ny < 0 || nx >= game_state.width || ny >= game_state.height || game_state.board[ny][nx] != 0) {
+        if (nx < 0 || ny < 0 || nx >= game_state.width || ny >= game_state.height || board[ny][nx] != 0) {
             return 0; // Invalid placement
         }
     }
@@ -156,11 +177,13 @@ int validate_ship_placement(int x, int y, int shape, int rotation, int player) {
 
 // Place the ship on the board for the given player
 void place_ship(int x, int y, int shape, int rotation, int player) {
+    int **board = (player == 1) ? game_state.board_player1 : game_state.board_player2;
+    
     for (int i = 0; i < 4; i++) {
         int dx = shapes[shape].rotations[rotation][i][0];
         int dy = shapes[shape].rotations[rotation][i][1];
         // Mark the board with the player's number to indicate ship placement
-        game_state.board[y + dy][x + dx] = player;
+        board[y + dy][x + dx] = player;
     }
 }
 
@@ -374,40 +397,20 @@ void start_server() {
     }
     listen(server_fd1, 3);
 
-    printf("Waiting for Player 1 to connect and set board dimensions...\n");
+    printf("Waiting for Player 1 to connect...\n");
 
     // Accept Player 1 connection
     clients[0].socket_fd = accept(server_fd1, (struct sockaddr *)&clients[0].address, &addrlen1);
     if (clients[0].socket_fd >= 0) {
         clients[0].player_num = 1;
-        printf("Player 1 connected. Waiting for board dimensions.\n");
+        printf("Player 1 connected.\n");
     } else {
         perror("Failed to accept Player 1 connection");
         close(server_fd1);
         return;
     }
 
-    // Wait for Player 1's board setup command
-    char buffer[BUFFER_SIZE];
-    memset(buffer, 0, BUFFER_SIZE);
-    int valread = read(clients[0].socket_fd, buffer, BUFFER_SIZE);
-    if (valread > 0 && buffer[0] == 'B') {
-        int width, height;
-        if (sscanf(buffer + 2, "%d %d", &width, &height) == 2 && width >= MIN_BOARD_SIZE && height >= MIN_BOARD_SIZE) {
-            setup_board(width, height);  // Initialize the board
-            send_acknowledgement(clients[0].socket_fd);  // Acknowledge Player 1
-            printf("Board initialized to %dx%d by Player 1.\n", width, height);
-        } else {
-            send_error(clients[0].socket_fd, ERR_INVALID_PARAMS_BEGIN);
-            printf("Invalid board dimensions from Player 1. Minimum size is %dx%d.\n", MIN_BOARD_SIZE, MIN_BOARD_SIZE);
-            return;
-        }
-    }
-
-    // Step 2: Now wait for Player 2’s "B" packet to indicate they are ready to start
-    printf("Waiting for Player 2 to send 'B' to start the game...\n");
-
-    // Set up socket for Player 2 (PORT 2202)
+    // Step 2: Set up socket for Player 2 (PORT 2202)
     if ((server_fd2 = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("Socket creation failed for Player 2");
         exit(EXIT_FAILURE);
@@ -424,7 +427,9 @@ void start_server() {
     }
     listen(server_fd2, 3);
 
-    // Accept Player 2's connection
+    printf("Waiting for Player 2 to connect...\n");
+
+    // Accept Player 2 connection
     clients[1].socket_fd = accept(server_fd2, (struct sockaddr *)&clients[1].address, &addrlen2);
     if (clients[1].socket_fd >= 0) {
         clients[1].player_num = 2;
@@ -435,10 +440,30 @@ void start_server() {
         return;
     }
 
-    // Step 3: Manually prompt Player 2 to send "B"
+    // Step 3: Now both players are connected, process board setup
+    char buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
+    int valread;
+
+    // Wait for Player 1 to send the board setup command
+    printf("Waiting for Player 1 to send board dimensions...\n");
+    valread = read(clients[0].socket_fd, buffer, BUFFER_SIZE);
+    if (valread > 0 && buffer[0] == 'B') {
+        int width, height;
+        if (sscanf(buffer + 2, "%d %d", &width, &height) == 2 && width >= MIN_BOARD_SIZE && height >= MIN_BOARD_SIZE) {
+            setup_board(width, height);  // Initialize the board
+            send_acknowledgement(clients[0].socket_fd);  // Acknowledge Player 1
+            printf("Board initialized to %dx%d by Player 1.\n", width, height);
+        } else {
+            send_error(clients[0].socket_fd, ERR_INVALID_PARAMS_BEGIN);
+            printf("Invalid board dimensions from Player 1. Minimum size is %dx%d.\n", MIN_BOARD_SIZE, MIN_BOARD_SIZE);
+            return;
+        }
+    }
+
+    // Step 4: Wait for Player 2 to send the 'B' command to acknowledge game start
     printf("Please send 'B' to start the game, Player 2...\n");
 
-    // Wait for Player 2 to send the 'B' packet
     memset(buffer, 0, BUFFER_SIZE);
     valread = read(clients[1].socket_fd, buffer, BUFFER_SIZE);
     if (valread > 0 && buffer[0] == 'B') {
@@ -449,20 +474,22 @@ void start_server() {
         return;
     }
 
-    // **New Step**: After Player 2 acknowledges, prompt both players to initialize their ships
-    send_response(clients[0].socket_fd, "Enter ship initialization (I <Piece_type Piece_rotation Piece_column Piece_row>): ");
-    send_response(clients[1].socket_fd, "Enter ship initialization (I <Piece_type Piece_rotation Piece_column Piece_row>): ");
+    // **Step 5**: Let both players initialize ships.
+    send_response(clients[0].socket_fd, "Please initialize your ships (I <Piece_type> <Piece_rotation> <Piece_column> <Piece_row>): ");
+    send_response(clients[1].socket_fd, "Waiting for Player 1 to finish initializing ships...");
 
-    // Step 4: Handle ship initialization for Player 1
+    // Wait for Player 1 to initialize ships
     memset(buffer, 0, BUFFER_SIZE);
     valread = read(clients[0].socket_fd, buffer, BUFFER_SIZE);
     if (valread > 0) {
         printf("Received ship setup from Player 1: %s\n", buffer);
         initialize_ships(&clients[0], buffer); // Validate and place ships for Player 1
         send_acknowledgement(clients[0].socket_fd);
+        send_response(clients[1].socket_fd, "Player 1 has finished initializing ships. Please initialize your ships.");
+        printf("Waiting for Player 2 to initialize ships...\n");
     }
 
-    // Step 5: Handle ship initialization for Player 2
+    // Wait for Player 2 to initialize ships
     memset(buffer, 0, BUFFER_SIZE);
     valread = read(clients[1].socket_fd, buffer, BUFFER_SIZE);
     if (valread > 0) {
@@ -471,9 +498,10 @@ void start_server() {
         send_acknowledgement(clients[1].socket_fd);
     }
 
-    // Step 6: After both players have initialized ships, the game can proceed
-    printf("Both players have initialized ships. Starting the game...\n");
+    // Step 6: Both players have initialized ships, the game starts
+    printf("Both players have initialized their ships. The game is starting...\n");
 }
+
 
 
 int main(int argc, char *argv[]) {
