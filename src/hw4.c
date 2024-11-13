@@ -12,6 +12,7 @@
 void server_function();
 void client_function(int);
 
+
 // Function to handle the server
 void server_function() {
     int listen_fd1, listen_fd2, conn_fd1, conn_fd2;
@@ -84,29 +85,30 @@ void server_function() {
     printf("Client 1 connected.\n");
 
     // Accept connection for Client 2 (on port2)
-    if ((conn_fd2 = accept(listen_fd2, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
-        perror("Accept failed for Client 2.");
-        exit(EXIT_FAILURE);
-    }
-    printf("Client 2 connected.\n");
+    // if ((conn_fd2 = accept(listen_fd2, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+    //     perror("Accept failed for Client 2.");
+    //     exit(EXIT_FAILURE);
+    // }
+    // printf("Client 2 connected.\n");
     // Handle communication between two clients
     while (1) {
-        // Receive message from Client 1 and send to Client 2
+        // Receive message from Client 1 
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd1, buffer, BUFFER_SIZE);
-        {
+            
             switch(buffer[0]){
+                
                 case 'B':
                     char message[BUFFER_SIZE];
                     int width,height;
                     char command;
                     sscanf(buffer, "%c %d %d", &command, &width, &height);
                     if (width < 10 || height < 10){
-                        sprintf(message,"Invalid");
+                        sprintf(message,"Invalid");fflush(stdout);
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
                     else{
-                        sprintf(message, "Board of %dx%d created.", width, height);
+                        sprintf(message, "Board of %dx%d created.", width, height);fflush(stdout);
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
                     
@@ -115,7 +117,7 @@ void server_function() {
                 default:
 
             }
-        }
+        
 
         // Receive message from Client 2 and send to Client 1
         memset(buffer, 0, BUFFER_SIZE);
@@ -142,7 +144,6 @@ void client_function(int clientID) {
         perror("Socket creation failed.");
         exit(EXIT_FAILURE);
     }
-
     // Define server address
     int PORT = PORT1;
     if (clientID == 2){
@@ -155,39 +156,39 @@ void client_function(int clientID) {
         perror("Invalid address.");
         exit(EXIT_FAILURE);
     }
-
     // Connect to server
     if (connect(client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Connection failed.");
         exit(EXIT_FAILURE);
     }
 
-    
     // Start sending and receiving messages
-
     if (clientID == 1){
-
         int width,height;
         char command;
             // Parse the input using sscanf
         do{
-            printf("Set up the board (B <Width_of_board Height_of_board>):");
+            printf("Set up the board (B <Width_of_board Height_of_board>):");fflush(stdout);
+            fgets(buffer, BUFFER_SIZE, stdin);
+            buffer[strlen(buffer)-1] = '\0';
 
             if (sscanf(buffer, "%c %d %d", &command, &width, &height) == 3){
-
-                snprintf(buffer, sizeof(buffer), "%c %d %d", command, width, height);
+                snprintf(buffer, sizeof(buffer), "%c %d %d", command, width, height);fflush(stdout);
                 send(client_fd, buffer, strlen(buffer), 0);  // Send the formatted message to the server
             }
 
             memset(buffer, 0, BUFFER_SIZE);
             read(client_fd, buffer, BUFFER_SIZE);
             if (strcmp(buffer, "Invalid") == 0){
-                printf("Invalid width/height. ");
+                printf("Invalid width/height. ");fflush(stdout);
             }
         } while (strcmp(buffer, "Invalid") == 0);
 
-        printf("%s", buffer);
+        printf("%s", buffer);fflush(stdout);
             
+    }
+    else{
+
     }
    
         // Close connection
@@ -214,5 +215,6 @@ int main(int argc, char *argv[]) {
         printf("Invalid argument. Use 'server' or 'client1' or 'client2'.\n");
         return 1;
     }
+    fflush(stdout);
     return 0;
 }
