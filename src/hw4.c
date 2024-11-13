@@ -11,8 +11,48 @@
 
 void server_function();
 void client_function(int);
+int **create_board(int,int);
+void clear_board(int**);
+void free_board(int**);
+int validate_ship(int, int, int, int);
+
+int **board1 = NULL;
+int **board2 = NULL;
+int boardheight = 0;
+int boardwidth = 0;
 
 
+int** create_board(int width, int height) {
+    int **board = (int**)malloc(width * sizeof(int*));
+    for (int i = 0; i < width; i++) {
+        board[i] = (int*)calloc(height, sizeof(int));  // Allocate and initialize to 0
+    }
+    return board;
+}
+
+void clear_board(int **board) {
+    for (int i = 0; i < boardwidth; i++) {
+        for (int j = 0; j < boardheight; j++) {
+            board[i][j] = 0;  // Set each element to 0
+        }
+    }
+}
+
+void free_board(int **board) {
+    for (int i = 0; i < boardheight; i++) {
+        free(board[i]);
+    }
+    free(board);
+}
+
+int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_row){
+    if (piece_type > 7 || piece_type < 1 || piece_rotation > 4 || piece_rotation < 4 ||
+        piece_col > boardheight || piece_col < 0 || piece_row > boardwidth || piece_row < 0){
+            return 0;
+        }
+    return 1;
+
+}
 // Function to handle the server
 void server_function() {
     int listen_fd1, listen_fd2, conn_fd1, conn_fd2;
@@ -84,13 +124,13 @@ void server_function() {
     }
     printf("Client 1 connected.\n");
 
-    // Accept connection for Client 2 (on port2)
-    // if ((conn_fd2 = accept(listen_fd2, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
-    //     perror("Accept failed for Client 2.");
-    //     exit(EXIT_FAILURE);
-    // }
-    // printf("Client 2 connected.\n");
-    // Handle communication between two clients
+    //Accept connection for Client 2 (on port2)
+    if ((conn_fd2 = accept(listen_fd2, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+        perror("Accept failed for Client 2.");
+        exit(EXIT_FAILURE);
+    }
+    printf("Client 2 connected.\n");
+    //Handle communication between two clients
     while (1) {
         // Receive message from Client 1 
         memset(buffer, 0, BUFFER_SIZE);
@@ -108,9 +148,21 @@ void server_function() {
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
                     else{
+                        board1 = create_board(width,height);
+                        board2 = create_board(width,height);
+                        boardwidth = width;
+                        boardheight = height;
                         sprintf(message, "Board of %dx%d created.", width, height);fflush(stdout);
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
+                case 'I':
+                    int piece_type, piece_rotation, piece_col, piece_row;
+                    int ship_count = 0;
+                    
+                    while(sscanf(buffer, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4 && ){
+                        ship_count++;
+                    }
+                    
                     
                     break;
 
@@ -122,6 +174,14 @@ void server_function() {
         // Receive message from Client 2 and send to Client 1
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd2, buffer, BUFFER_SIZE);
+         switch(buffer[0]){
+                
+                case 'B':
+
+                    break;
+
+                default:
+         }
 
     }
 
@@ -130,6 +190,9 @@ void server_function() {
     close(conn_fd2);
     close(listen_fd1);
     close(listen_fd2);
+    //Free the boards
+    free_board(board1);
+    free_board(board2);
     printf("Server shutting down.\n");
 }
 
