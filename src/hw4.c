@@ -47,16 +47,18 @@ void free_board(int **board) {
 }
 
 int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board){
+        
     switch(piece_type){
         case '1':
             //Check if the ship can be fit in the board
-            if (piece_col + 1 > boardwidth || piece_row + 1 > boardheight){
+            if (piece_col + 1 >= boardwidth || piece_row + 1 >= boardheight){
                 //Error 302 should be raise
             }
-            //Check if an overlap had occured
-            else if (board[piece_row][piece_col] || board[piece_row+1][piece_col] || board[piece_row][piece_col+1] || board[piece_row+1][piece_col+1]){
+            //Check if an overlap had occurred
+            if (board[piece_row][piece_col] || board[piece_row+1][piece_col] || board[piece_row][piece_col+1] || board[piece_row+1][piece_col+1]){
                 //Error 303 should be raise
             }
+            //Since all roations have the same shape, there will be only one way to place this shape
             board[piece_row][piece_col] == 1;
             board[piece_row+1][piece_col] == 1;
             board[piece_row][piece_col+1] == 1; 
@@ -64,17 +66,199 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
 
             break;
         case '2':
-            
+            //Rotation 1 and 3
+            if (piece_rotation % 2){
+                //Check if the ship can be fit in the board
+                if(piece_row + 3 >= boardheight){
+                //Error 302 should be raise
+                }
+
+                for (int i = 0; i < 4; i++){
+                    //Check if an overlap had occurred in the rows
+                    if (board[piece_row+i][piece_col] == 1){
+                        //Error 303 should be raise
+                    }
+                }
+
+                for (int i = 0; i < 4; i++){
+                    //Place the ship into the board
+                    board[piece_row+i][piece_col] = 1;
+                }
+                
+            }
+            //Rotation 2 and 4
+            else {
+                //Check if the ship can be fit in the board
+                if(piece_col + 3 >= boardwidth){
+                //Error 302 should be raise
+                }
+                for (int i = 0; i < 4; i++){
+                    //Check if an overlap had occurred in the cols
+                    if (board[piece_row][piece_col+i] == 1){
+                        //Error 303 should be raise
+                    }
+                }
+
+                for (int i = 0; i < 4; i++){
+                    //Place the ship into the board
+                    board[piece_row][piece_col+i] = 1;
+                }
+            }
 
             break;
         case '3':
-            
+            //Rotation 1 and 3
+            if(piece_rotation % 2){
+                //Check if the ship can fit in the board
+                if (piece_row - 1 < 0 || piece_col + 2 >= boardwidth){
+                    //Error 302 should be raise
+                }
+                
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row][piece_col+1] || 
+                    board[piece_row-1][piece_col+1] || board[piece_row-1][piece_col+1]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row][piece_col+1] = 1;
+                board[piece_row-1][piece_col+1] = 1;
+                board[piece_row-1][piece_col+1] = 1;
+            } 
+            //Rotation 2 and 4
+            else {
+                //Check if the ship can fit in the board
+                if(piece_row + 2 >= boardheight || piece_col + 1 >= boardwidth){
+                    //Error 302 should be raise
+                }
+
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row+1][piece_col] ||
+                    board[piece_row+1][piece_col+1] || board[piece_row+2][piece_col+1]){
+                        //Error 303 should be raise
+                }
+                board[piece_row][piece_col] = 1;
+                board[piece_row+1][piece_col] = 1;
+                board[piece_row+1][piece_col+1] = 1;
+                board[piece_row+2][piece_col+1] = 1;
+            }
             break;
         case '4':
+            //Rotation 1
+            if (piece_rotation == 1){
+                //Check if the ship can fit in the board
+                if (piece_col + 1 >= boardwidth || piece_row + 2 >= boardheight){
+                    //Error 302 should be raise
+                }
+
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row+1][piece_col] ||
+                    board[piece_row+2][piece_col] || board[piece_row+2][piece_col+1]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row+1][piece_col] = 1;
+                board[piece_row+2][piece_col] = 1;
+                board[piece_row+2][piece_col+1] =1;
+
+            } 
+            //Rotation 2
+            else if (piece_rotation == 2){
+                //Check if the ship can fit in the board
+                if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
+                    //Error 302 should be raise
+                }
+
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
+                    board[piece_row][piece_col+2] || board[piece_row+1][piece_col]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row][piece_col+1] = 1;
+                board[piece_row][piece_col+2] = 1;
+                board[piece_row+1][piece_col] = 1;
+
+            } 
+            //Rotation 3
+            else if (piece_rotation == 3){
+                //Check if the ship can fit in the board
+                if (piece_col + 1 >= boardwidth || piece_row + 2 >= boardheight){
+                    //Error 302 should be raise
+                }
+
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
+                    board[piece_row+1][piece_col+1] || board[piece_row+2][piece_col+1]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row][piece_col+1] = 1;
+                board[piece_row+1][piece_col+1] = 1;
+                board[piece_row+2][piece_col+1] = 1;
+
+            } 
+            //Rotation 4
+            else{
+                //Check if the ship can fit in the board
+                if (piece_col + 2 >= boardwidth || piece_row - 1 < 0){
+                    //Error 302 should be raise
+                }
+
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
+                    board[piece_row][piece_col+2] || board[piece_row-1][piece_col+2]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row][piece_col+1] = 1;
+                board[piece_row][piece_col+2] = 1;
+                board[piece_row-1][piece_col+2] = 1;
+            }
 
             break;
         case '5':
+            //Rotation 1 and 3
+            if (piece_rotation % 2){
+                //Check if the ship can fit in the board
+                if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
+                    //Error 302 should be raise
+                }
 
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
+                    board[piece_row+1][piece_col+1] || board[piece_row+1][piece_col+2]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row][piece_col+1] = 1;
+                board[piece_row+1][piece_col+1] = 1;
+                board[piece_row+1][piece_col+2] = 1;
+            }
+            //Rotation 2 and 4
+            else{
+                //Check if the ship can fit in the board
+                if (piece_col + 1 >= boardwidth || piece_row + 1 >= boardheight || piece_row - 1 < 0){
+                    //Error 302 should be raise
+                }
+
+                //Check if an overlap had occurred
+                if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
+                    board[piece_row-1][piece_col+1] || board[piece_row+1][piece_col]){
+                        //Error 303 should be raise
+                }
+
+                board[piece_row][piece_col] = 1;
+                board[piece_row][piece_col+1] = 1;
+                board[piece_row-1][piece_col+1] = 1;
+                board[piece_row+1][piece_col] = 1;
+
+            }
             break;
         case '6':
 
