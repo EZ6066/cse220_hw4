@@ -14,7 +14,8 @@ void client_function(int);
 int **create_board(int,int);
 void clear_board(int**);
 void free_board(int**);
-int validate_ship(int, int, int, int);
+int place_ship(int, int, int, int, int**);
+int validate_ship(int, int, int, int, int**);
 
 int **board1 = NULL;
 int **board2 = NULL;
@@ -45,11 +46,53 @@ void free_board(int **board) {
     free(board);
 }
 
-int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_row){
+int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board){
+    switch(piece_type){
+        case '1':
+            //Check if the ship can be fit in the board
+            if (piece_col + 1 > boardwidth || piece_row + 1 > boardheight){
+                //Error 302 should be raise
+            }
+            //Check if an overlap had occured
+            else if (board[piece_row][piece_col] || board[piece_row+1][piece_col] || board[piece_row][piece_col+1] || board[piece_row+1][piece_col+1]){
+                //Error 303 should be raise
+            }
+            board[piece_row][piece_col] == 1;
+            board[piece_row+1][piece_col] == 1;
+            board[piece_row][piece_col+1] == 1; 
+            board[piece_row+1][piece_col+1] == 1;
+
+            break;
+        case '2':
+            
+
+            break;
+        case '3':
+            
+            break;
+        case '4':
+
+            break;
+        case '5':
+
+            break;
+        case '6':
+
+            break;
+        case '7':
+
+            break;
+    }
+    return 1;
+}
+
+int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board){
     if (piece_type > 7 || piece_type < 1 || piece_rotation > 4 || piece_rotation < 4 ||
         piece_col > boardheight || piece_col < 0 || piece_row > boardwidth || piece_row < 0){
             return 0;
         }
+
+        
     return 1;
 
 }
@@ -159,7 +202,7 @@ void server_function() {
                     int piece_type, piece_rotation, piece_col, piece_row;
                     int ship_count = 0;
                     
-                    while(sscanf(buffer, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4 && ){
+                    while(sscanf(buffer, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4 &&){
                         ship_count++;
                     }
                     
