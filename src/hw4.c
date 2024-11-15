@@ -759,7 +759,6 @@ void server_function() {
                         break;
                     }
                 case 'Q':
-
                     if (!flag_b){
                         sprintf(message,"E 100");
                         send(conn_fd1, message, strlen(message), 0);
@@ -778,18 +777,6 @@ void server_function() {
                     break;
 
                 case 'F':
-
-                    if (!flag_b){
-                        sprintf(message,"E 100");
-                        send(conn_fd1, message, strlen(message), 0);
-                        break;
-                    }
-
-                    if (!flag_i){
-                        sprintf(message,"E 101");
-                        send(conn_fd1, message, strlen(message), 0);
-                        break;
-                    }
 
                     sprintf(message, "H 0");
                     send(conn_fd1, message, strlen(message), 0);
@@ -964,18 +951,6 @@ void server_function() {
 
                 case 'F':
 
-                    if (!flag_b2){
-                        sprintf(message,"E 100");
-                        send(conn_fd2, message, strlen(message), 0);
-                        break;
-                    }
-
-                    if (!flag_i2){
-                        sprintf(message,"E 101");
-                        send(conn_fd2, message, strlen(message), 0);
-                        break;
-                    }
-
                     sprintf(message, "H 0");
                     send(conn_fd2, message, strlen(message), 0);
                     sprintf(message, "H 1");
@@ -1013,139 +988,10 @@ void server_function() {
     free_board(board1);
     free_board(board2);
     printf("Server shutting down.\n");
-}
+}    
 
-// Function to handle the client
-void client_function(int clientID) {
-    int client_fd;
-    struct sockaddr_in serv_addr;
-    char buffer[BUFFER_SIZE] = {0};
-
-    // Create socket
-    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation failed.");
-        exit(EXIT_FAILURE);
-    }
-    // Define server address
-    int PORT = PORT1;
-    if (clientID == 2){
-        PORT = PORT2;
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        perror("Invalid address.");
-        exit(EXIT_FAILURE);
-    }
-    // Connect to server
-    if (connect(client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Connection failed.");
-        exit(EXIT_FAILURE);
-    }
-
-    // Start sending and receiving messages
-    if (clientID == 1){
-        while(1){
-            printf("\nSet up the board (B <Width_of_board Height_of_board>):");
-            fgets(buffer, BUFFER_SIZE, stdin);
-            buffer[strlen(buffer)-1] = '\0';
-            send(client_fd, buffer, strlen(buffer), 0);
-
-            memset(buffer, 0, BUFFER_SIZE);
-            read(client_fd, buffer, BUFFER_SIZE);
-
-            if (strcmp(buffer, "A") == 0){
-                printf("%s\n", buffer);
-                break;
-            }
-
-            printf("%s\n", buffer);
-        }  
-    }
-    //Client 2
-    else {
-        while(1){
-            //Prompt player 2 to enter 'B' and send whatever the player entered to the server
-            printf("Enter 'B' to join game:");fflush(stdout);
-            fgets(buffer, BUFFER_SIZE, stdin);
-            buffer[strlen(buffer)-1] = '\0';
-            send(client_fd, buffer, strlen(buffer), 0);
-
-            //Recieve the package from the server and see if an invalid input had entered
-            memset(buffer, 0, BUFFER_SIZE);
-            read(client_fd, buffer, BUFFER_SIZE);
-
-            if (strcmp(buffer, "A") == 0){
-            printf("%s\n", buffer);fflush(stdout);
-            break;
-            }
-        
-            printf("%s", buffer);fflush(stdout);
-        }
-    }
-
-
-    while(1){
-        printf("\nPlease initialize the ships(I 5x <Piece_type Piece_rotation Piece_column Piece_row>):");
-        fgets(buffer, BUFFER_SIZE, stdin);
-        buffer[strlen(buffer)-1] = '\0';
-        send(client_fd, buffer, strlen(buffer), 0);
-
-        //Recieve the package from the server and see if an invalid input had entered
-        memset(buffer, 0, BUFFER_SIZE);
-        read(client_fd, buffer, BUFFER_SIZE);
-        printf("%s", buffer);fflush(stdout);
-         if (strcmp(buffer, "A") == 0){
-            if (clientID == 1){
-                initialize1 = 1;
-            }
-            else{
-                initialize2 = 1;
-            }
-            break;
-         }
-    }
-
-    printf("Waiting for the opponent to initialize the ships.");
-    while (!(initialize1&&initialize2)){
-         sleep(1);  // Sleep for 1 second to reduce CPU usage
-    };
-
-    printf("Both players had initialized their ships, game start!");
-
-    while(1){
-        fgets(buffer, BUFFER_SIZE, stdin);
-        buffer[strlen(buffer)-1] = '\0';
-        send(client_fd, buffer, strlen(buffer), 0);
-        printf("%s", buffer);fflush(stdout);
-
-    }
-
-    // Close connection
-    close(client_fd);
-    printf("Client shutting down.\n");
-}
-
-    
-
-// Main function to decide whether to run the server or the client
+//Main function to decide whether to run the server or the client
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <server/1/2>\n", argv[0]);
-        return 1;
-    }
-
-    if (strcmp(argv[1], "server") == 0) {
-        server_function();
-    } else if (strcmp(argv[1], "1") == 0) {
-        client_function(1);
-    } else if (strcmp(argv[1], "2") == 0){
-        client_function(2);
-    } else {
-        printf("Invalid argument. Use 'server' or '1' or '2'.\n");
-        return 1;
-    }
-    fflush(stdout);
+    server_function();
     return 0;
 }
