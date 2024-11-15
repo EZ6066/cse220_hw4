@@ -616,7 +616,13 @@ void server_function() {
     }
     printf("Client 2 connected.\n");
     //Handle communication between two clients
-    while (1) {
+
+    int flag_b = 0;
+    int flag_b2 = 0;
+    int flag_i = 0;
+    int flag_i2 = 0;
+    int in_game = 1;
+    while (in_game) {
         // Receive message from Client 1 
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd1, buffer, BUFFER_SIZE);
@@ -625,28 +631,42 @@ void server_function() {
                 
                 case 'B':
                     char message[BUFFER_SIZE];
-                    int width,height;
-                    char command;
 
-                    // Pointer to parse the buffer after 'I'
-                    const char *ptr = buffer + 1;  // Skip 'I' character
-                    sscanf(ptr, "%d %d", &command, &width, &height);
-                    if (width < 10 || height < 10){
-                        sprintf(message,"Invalid");
+                    if (flag_b){
+                        sprintf(message,"E 102");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    int width,height;
+                    // Pointer to parse the buffer after 'B'
+                    const char *ptr = buffer + 1;  // Skip 'S' character
+
+                    int num = sscanf(ptr, "%d %d", &width, &height);
+                    if (width < 10 || height < 10 || num != 2){
+                        sprintf(message,"E 200");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
                     else{
+                        flag_b = 1;
                         board1 = create_board(width,height);
                         board2 = create_board(width,height);
                         boardwidth = width;
                         boardheight = height;
-                        sprintf(message, "Board of %dx%d created.", width, height);fflush(stdout);
+                        sprintf(message, "A");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
                     break;
 
                 case 'I':
                     char message[BUFFER_SIZE];
+
+                    if (flag_i){
+                        sprintf(message,"E 102");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
                     int piece_type, piece_rotation, piece_col, piece_row;
                     int ship_id = 0;
                     int is_valid = 0;
@@ -683,6 +703,7 @@ void server_function() {
                     }
                     
                     if (ship_id == 5 && is_valid == 1) {
+                        flag_i = 1;
                         sprintf(message, "A");  // Acknowledge success
                         send(conn_fd1, message, strlen(message), 0);
                     }
@@ -690,11 +711,24 @@ void server_function() {
                     break;
                 case 'S':
                     char message[BUFFER_SIZE];
-                    int row, col;
-                    // Pointer to parse the buffer after 'I'
-                    const char *ptr = buffer + 1;  // Skip 'I' character
 
-                    if (sscanf(ptr, "%d %d", &width, &height) != 2){
+                    if (!flag_b){
+                        sprintf(message,"E 100");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i){
+                        sprintf(message,"E 101");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    int row, col;
+                    // Pointer to parse the buffer after 'S'
+                    const char *ptr = buffer + 1;  // Skip 'S' character
+
+                    if (sscanf(ptr, "%d %d", &row, &col) != 2){
                         sprintf(message,"E 202");
                         send(conn_fd1, message, strlen(message), 0);
                         break;
@@ -726,29 +760,245 @@ void server_function() {
                     }
                 case 'Q':
                     char message[BUFFER_SIZE];
+
+                    if (!flag_b){
+                        sprintf(message,"E 100");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i){
+                        sprintf(message,"E 101");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
                     sprintf(message, "G %d", count_ship(board2));
                     query(message, board2);
                     send(conn_fd1, message, strlen(message), 0);
                     break;
 
                 case 'F':
+                    char message[BUFFER_SIZE];
+
+                    if (!flag_b){
+                        sprintf(message,"E 100");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i){
+                        sprintf(message,"E 101");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    sprintf(message, "H 0");
+                    send(conn_fd1, message, strlen(message), 0);
+                    sprintf(message, "H 1");
+                    send(conn_fd2, message, strlen(message), 0);
+
+                    in_game = 0;
                     break;
                 default:
+
+                    if (!flag_b){
+                        sprintf(message,"E 100");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i){
+                        sprintf(message,"E 101");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    sprintf(message,"E 102");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
 
             }
         
-
-        // Receive message from Client 2 and send to Client 1
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd2, buffer, BUFFER_SIZE);
-        switch(buffer[0]){
+                    switch(buffer[0]){
                 
                 case 'B':
+                    char message[BUFFER_SIZE];
 
+                    if (flag_b2){
+                        sprintf(message,"E 102");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    sprintf(message, "A");
+                    send(conn_fd2, message, strlen(message), 0);
+                    break;
+
+                case 'I':
+                    char message[BUFFER_SIZE];
+
+                    if (flag_i2){
+                        sprintf(message,"E 102");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    int piece_type, piece_rotation, piece_col, piece_row;
+                    int ship_id = 0;
+                    int is_valid = 0;
+
+                    if (!validate_input){
+                        sprintf(message,"E 201");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+                    // Pointer to parse the buffer after 'I'
+                    const char *ptr = buffer + 1;  // Skip 'I' character
+
+                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4) {
+                    ship_id++;
+
+                    // Validate each ship's position
+                    is_valid = validate_ship(piece_type, piece_rotation, piece_col, piece_row, board1, ship_id);
+                    if (is_valid != 1) {
+                        sprintf(message, "E %d", is_valid);
+                        send(conn_fd2, message, strlen(message), 0);
+                        clear_board(board2);
+                        break;
+                    }
+
+                    // Move the pointer forward past the parsed numbers
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip first number
+                    while (*ptr == ' ') ptr++;
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip second number
+                    while (*ptr == ' ') ptr++;
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip third number
+                    while (*ptr == ' ') ptr++;
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip fourth number
+                    while (*ptr == ' ') ptr++;
+                    }
+                    
+                    if (ship_id == 5 && is_valid == 1) {
+                        flag_i2 = 1;
+                        sprintf(message, "A");  // Acknowledge success
+                        send(conn_fd2, message, strlen(message), 0);
+                    }
+                    
+                    break;
+                case 'S':
+                    char message[BUFFER_SIZE];
+
+                    if (!flag_b2){
+                        sprintf(message,"E 100");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i2){
+                        sprintf(message,"E 101");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    int row, col;
+                    // Pointer to parse the buffer after 'S'
+                    const char *ptr = buffer + 1;  // Skip 'S' character
+
+                    if (sscanf(ptr, "%d %d", &row, &col) != 2){
+                        sprintf(message,"E 202");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (row >= boardwidth || row < 0 || col >= boardheight || col < 0){
+                        sprintf(message,"E 400");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (board1[row][col] == -1 || board1[row][col] == -2){
+                        sprintf(message,"E 401");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (board1[row][col] == 0){
+                        board1[row][col] = -1;
+                        sprintf(message,"R %d M", count_ship(board1));
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+                    else{
+                        board1[row][col] == -2;
+                        sprintf(message,"R %d H", count_ship(board1));
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+                case 'Q':
+                    char message[BUFFER_SIZE];
+
+                    if (!flag_b2){
+                        sprintf(message,"E 100");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i2){
+                        sprintf(message,"E 101");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    sprintf(message, "G %d", count_ship(board1));
+                    query(message, board1);
+                    send(conn_fd2, message, strlen(message), 0);
+                    break;
+
+                case 'F':
+                    char message[BUFFER_SIZE];
+
+                    if (!flag_b2){
+                        sprintf(message,"E 100");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i2){
+                        sprintf(message,"E 101");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    sprintf(message, "H 0");
+                    send(conn_fd2, message, strlen(message), 0);
+                    sprintf(message, "H 1");
+                    send(conn_fd1, message, strlen(message), 0);
+
+                    in_game = 0;
                     break;
 
                 default:
-         }
+
+                    if (!flag_b2){
+                        sprintf(message,"E 100");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (!flag_i2){
+                        sprintf(message,"E 101");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
+
+                    sprintf(message,"E 102");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+
+            }
 
     }
 
@@ -796,6 +1046,7 @@ void client_function(int clientID) {
     if (clientID == 1){
         int width,height;
         char command;
+        int flag = 1;
             // Parse the input using sscanf
         do{
             printf("Set up the board (B <Width_of_board Height_of_board>):");fflush(stdout);
@@ -809,12 +1060,23 @@ void client_function(int clientID) {
 
             memset(buffer, 0, BUFFER_SIZE);
             read(client_fd, buffer, BUFFER_SIZE);
-            if (strcmp(buffer, "Invalid") == 0){
-                printf("Invalid width/height. ");fflush(stdout);
+            if (strcmp(buffer, "E 100") == 0){
+                printf("Expected Begin packet. ");fflush(stdout);
             }
-        } while (strcmp(buffer, "Invalid") == 0);
+            else if (strcmp(buffer, "E 200") == 0){
+                printf("Invalid width/height/number of parameters. ");fflush(stdout);
+            }
+            else {
+                flag = 0;
+            }
+
+        } while (flag);
 
         printf("%s", buffer);fflush(stdout);
+        
+        while(1){
+
+        }
             
     }
     else{
