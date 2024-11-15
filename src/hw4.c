@@ -24,6 +24,8 @@ int **board1 = NULL;
 int **board2 = NULL;
 int boardheight = 0;
 int boardwidth = 0;
+int initialize1 = 0;
+int initialize2 = 0;
 
 int** create_board(int width, int height) {
     int **board = (int**)malloc(width * sizeof(int*));
@@ -632,10 +634,17 @@ void server_function() {
                 case 'B':
                     char message[BUFFER_SIZE];
 
-                    if (flag_b){
-                        sprintf(message,"E 102");
-                        send(conn_fd1, message, strlen(message), 0);
-                        break;
+                    if (flag_b){//If B had already been called
+                        if (flag_i){//If both B and I had been called
+                            sprintf(message,"E 102");
+                            send(conn_fd1, message, strlen(message), 0);
+                            break;
+                        }
+                        else {//Executes only when B is called and I is not called
+                            sprintf(message,"E 101");
+                            send(conn_fd1, message, strlen(message), 0);
+                            break;
+                        }
                     }
 
                     int width,height;
@@ -660,7 +669,12 @@ void server_function() {
 
                 case 'I':
                     char message[BUFFER_SIZE];
-
+                    //If B is not called and I is intended to be called, prompt E 100
+                    if(!flag_b){
+                        sprintf(message,"E 100");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
                     if (flag_i){
                         sprintf(message,"E 102");
                         send(conn_fd1, message, strlen(message), 0);
@@ -827,18 +841,39 @@ void server_function() {
                 case 'B':
                     char message[BUFFER_SIZE];
 
-                    if (flag_b2){
-                        sprintf(message,"E 102");
+                    if (flag_b2){//If B had already been called
+                        if (flag_i2){//If both B and I had been called
+                            sprintf(message,"E 102");
+                            send(conn_fd2, message, strlen(message), 0);
+                            break;
+                        }
+                        else {//Executes only when B is called and I is not called
+                            sprintf(message,"E 101");
+                            send(conn_fd2, message, strlen(message), 0);
+                            break;
+                        }
+                    }
+
+                    if(strcmp(buffer, "B") != 0){
+                        sprintf(message,"E 200");
                         send(conn_fd2, message, strlen(message), 0);
                         break;
                     }
 
+                    flag_b2 = 1;
                     sprintf(message, "A");
                     send(conn_fd2, message, strlen(message), 0);
                     break;
 
                 case 'I':
                     char message[BUFFER_SIZE];
+
+                    //If B is not called and I is intended to be called, prompt E 100
+                    if(!flag_b2){
+                        sprintf(message,"E 100");
+                        send(conn_fd2, message, strlen(message), 0);
+                        break;
+                    }
 
                     if (flag_i2){
                         sprintf(message,"E 102");
@@ -997,9 +1032,7 @@ void server_function() {
                     sprintf(message,"E 102");
                         send(conn_fd2, message, strlen(message), 0);
                         break;
-
             }
-
     }
 
     // Close connections
@@ -1044,48 +1077,101 @@ void client_function(int clientID) {
 
     // Start sending and receiving messages
     if (clientID == 1){
-        int width,height;
-        char command;
-        int flag = 1;
-            // Parse the input using sscanf
-        do{
+        while(1){
             printf("Set up the board (B <Width_of_board Height_of_board>):");fflush(stdout);
             fgets(buffer, BUFFER_SIZE, stdin);
             buffer[strlen(buffer)-1] = '\0';
-
-            if (sscanf(buffer, "%c %d %d", &command, &width, &height) == 3){
-                snprintf(buffer, sizeof(buffer), "%c %d %d", command, width, height);fflush(stdout);
-                send(client_fd, buffer, strlen(buffer), 0);  // Send the formatted message to the server
-            }
+            send(client_fd, buffer, strlen(buffer), 0);
 
             memset(buffer, 0, BUFFER_SIZE);
             read(client_fd, buffer, BUFFER_SIZE);
+
             if (strcmp(buffer, "E 100") == 0){
-                printf("Expected Begin packet. ");fflush(stdout);
+                printf("%s", buffer);fflush(stdout);
+                printf("Expected Begin packet.\n");fflush(stdout);
             }
             else if (strcmp(buffer, "E 200") == 0){
+                printf("%s", buffer);fflush(stdout);
                 printf("Invalid width/height/number of parameters. ");fflush(stdout);
             }
             else {
-                flag = 0;
+                break;
             }
 
-        } while (flag);
+        }
 
         printf("%s", buffer);fflush(stdout);
-        
-        while(1){
-
-        }
             
     }
-    else{
+    //Client 2
+    else {
+        while(1){
+            //Prompt player 2 to enter 'B' and send whatever the player entered to the server
+            printf("Enter 'B' to join game:");fflush(stdout);
+            fgets(buffer, BUFFER_SIZE, stdin);
+            buffer[strlen(buffer)-1] = '\0';
+            send(client_fd, buffer, strlen(buffer), 0);
+
+            //Recieve the package from the server and see if an invalid input had entered
+            memset(buffer, 0, BUFFER_SIZE);
+            read(client_fd, buffer, BUFFER_SIZE);
+
+            if (strcmp(buffer, "E 100") == 0){
+                printf("%s", buffer);fflush(stdout);
+                printf("Expected Begin packet.\n");fflush(stdout);
+            }
+            else if (strcmp(buffer, "E 200") == 0){
+                printf("%s", buffer);fflush(stdout);
+                printf("Please enter only 'B'.\n");fflush(stdout);
+
+            }
+            else{
+                break;
+            }
+        }
+        printf("%s", buffer);fflush(stdout);
+    }
+
+
+    while(1){
+        printf("Please initialize the ships(I 5x <Piece_type Piece_rotation Piece_column Piece_row>):");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strlen(buffer)-1] = '\0';
+        send(client_fd, buffer, strlen(buffer), 0);
+
+        //Recieve the package from the server and see if an invalid input had entered
+        memset(buffer, 0, BUFFER_SIZE);
+        read(client_fd, buffer, BUFFER_SIZE);
+        printf("%s", buffer);fflush(stdout);
+         if (strcmp(buffer, "A") == 0){
+            if (clientID == 1){
+                initialize1 = 1;
+            }
+            else{
+                initialize2 = 1;
+            }
+            break;
+         }
+    }
+
+    printf("Waiting for the opponent to initialize the ships.");
+    while (!(initialize1&&initialize2)){
+         sleep(1);  // Sleep for 1 second to reduce CPU usage
+    };
+
+    printf("Both players had initialized their ships, game start!");
+
+    while(1){
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strlen(buffer)-1] = '\0';
+        send(client_fd, buffer, strlen(buffer), 0);
+        printf("%s", buffer);fflush(stdout);
 
     }
-   
-        // Close connection
-        close(client_fd);
-        printf("Client shutting down.\n");
+
+    // Close connection
+    close(client_fd);
+    printf("Client shutting down.\n");
 }
 
     
