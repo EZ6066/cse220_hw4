@@ -624,16 +624,21 @@ void server_function() {
     int flag_i = 0;
     int flag_i2 = 0;
     int in_game = 1;
+    int turn = 1;
     while (in_game) {
-        // Receive message from Client 1 
-        char message[BUFFER_SIZE];
+        char message[BUFFER_SIZE] = {0};
+        memset(message, 0, BUFFER_SIZE);
         memset(buffer, 0, BUFFER_SIZE);
-        read(conn_fd1, buffer, BUFFER_SIZE);
         const char *ptr = buffer + 1;
-            
+        if (turn == 1){
+        // Receive message from Client 1 
+
+        read(conn_fd1, buffer, BUFFER_SIZE);    
             switch(buffer[0]){
                 
                 case 'B':
+                   
+
                     if (flag_b){//If B had already been called
                         if (flag_i){//If both B and I had been called
                             sprintf(message,"E 102");
@@ -651,8 +656,10 @@ void server_function() {
                 
                     int num = sscanf(ptr, "%d %d", &width, &height);
                     if (width < 10 || height < 10 || num != 2){
+                       
                         sprintf(message,"E 200");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
+                       
                     }
                     else{
                         flag_b = 1;
@@ -660,12 +667,17 @@ void server_function() {
                         board2 = create_board(width,height);
                         boardwidth = width;
                         boardheight = height;
+                       
+                        turn = 2;
                         sprintf(message, "A");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
+                       
                     }
                     break;
 
                 case 'I':
+                   
+
                     //If B is not called and I is intended to be called, prompt E 100
                     if(!flag_b){
                         sprintf(message,"E 100");
@@ -707,12 +719,16 @@ void server_function() {
                     
                     if (ship_id == 5 && is_valid == 1) {
                         flag_i = 1;
+                       
+                       turn = 2;
                         sprintf(message, "A");  // Acknowledge success
                         send(conn_fd1, message, strlen(message), 0);
+                       
                     }
                     
                     break;
                 case 'S':
+                   
 
                     if (!flag_b){
                         sprintf(message,"E 100");
@@ -748,17 +764,21 @@ void server_function() {
 
                     if (board2[row][col] == 0){
                         board2[row][col] = -1;
+                        turn = 2;
                         sprintf(message,"R %d M", count_ship(board2));
                         send(conn_fd1, message, strlen(message), 0);
                         break;
                     }
                     else{
                         board2[row][col] == -2;
+                        turn = 2;
                         sprintf(message,"R %d H", count_ship(board2));
                         send(conn_fd1, message, strlen(message), 0);
                         break;
                     }
                 case 'Q':
+                   
+
                     if (!flag_b){
                         sprintf(message,"E 100");
                         send(conn_fd1, message, strlen(message), 0);
@@ -777,15 +797,19 @@ void server_function() {
                     break;
 
                 case 'F':
-
+                
                     sprintf(message, "H 0");
                     send(conn_fd1, message, strlen(message), 0);
+
+                    
                     sprintf(message, "H 1");
                     send(conn_fd2, message, strlen(message), 0);
+                   
 
                     in_game = 0;
                     break;
                 default:
+
 
                     if (!flag_b){
                         sprintf(message,"E 100");
@@ -804,14 +828,18 @@ void server_function() {
                         break;
 
             }
+        }
+        else{
         
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd2, buffer, BUFFER_SIZE);
         ptr = buffer + 1;
-
+        
+        
             switch(buffer[0]){
                 
                 case 'B':
+                   
 
                     if (flag_b2){//If B had already been called
                         if (flag_i2){//If both B and I had been called
@@ -833,22 +861,30 @@ void server_function() {
                     }
 
                     flag_b2 = 1;
+                   turn = 1;
                     sprintf(message, "A");
                     send(conn_fd2, message, strlen(message), 0);
+                   
                     break;
 
                 case 'I':
+                   
+
 
                     //If B is not called and I is intended to be called, prompt E 100
                     if(!flag_b2){
+                       
                         sprintf(message,"E 100");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (flag_i2){
+                       
                         sprintf(message,"E 102");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
@@ -857,8 +893,10 @@ void server_function() {
                     int is_valid = 0;
 
                     if (!validate_input){
+                       
                         sprintf(message,"E 201");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
@@ -868,9 +906,11 @@ void server_function() {
                     // Validate each ship's position
                     is_valid = validate_ship(piece_type, piece_rotation, piece_col, piece_row, board1, ship_id);
                     if (is_valid != 1) {
+                       
                         sprintf(message, "E %d", is_valid);
                         send(conn_fd2, message, strlen(message), 0);
                         clear_board(board2);
+                       
                         break;
                     }
 
@@ -879,104 +919,140 @@ void server_function() {
                     
                     if (ship_id == 5 && is_valid == 1) {
                         flag_i2 = 1;
+                        turn = 2;
                         sprintf(message, "A");  // Acknowledge success
                         send(conn_fd2, message, strlen(message), 0);
+                       
                     }
                     
                     break;
                 case 'S':
+                   
 
                     if (!flag_b2){
+                       
                         sprintf(message,"E 100");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (!flag_i2){
+                       
                         sprintf(message,"E 101");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     int row, col;
 
                     if (sscanf(ptr, "%d %d", &row, &col) != 2){
+                       
                         sprintf(message,"E 202");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (row >= boardwidth || row < 0 || col >= boardheight || col < 0){
+                       
                         sprintf(message,"E 400");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (board1[row][col] == -1 || board1[row][col] == -2){
+                       
                         sprintf(message,"E 401");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (board1[row][col] == 0){
                         board1[row][col] = -1;
+                       
+                       turn = 1;
                         sprintf(message,"R %d M", count_ship(board1));
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
                     else{
                         board1[row][col] == -2;
+                       
+                       turn = 1;
                         sprintf(message,"R %d H", count_ship(board1));
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
                 case 'Q':
+                   
 
                     if (!flag_b2){
+                       
                         sprintf(message,"E 100");
+                        
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (!flag_i2){
+                       
                         sprintf(message,"E 101");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
+                   
 
                     sprintf(message, "G %d", count_ship(board1));
                     query(message, board1);
                     send(conn_fd2, message, strlen(message), 0);
+                   
                     break;
 
                 case 'F':
-
+                   
                     sprintf(message, "H 0");
                     send(conn_fd2, message, strlen(message), 0);
+                   
                     sprintf(message, "H 1");
                     send(conn_fd1, message, strlen(message), 0);
+                   
 
                     in_game = 0;
                     break;
 
                 default:
 
+
                     if (!flag_b2){
+                       
                         sprintf(message,"E 100");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
 
                     if (!flag_i2){
+                       
                         sprintf(message,"E 101");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
                     }
-
+                   
                     sprintf(message,"E 102");
                         send(conn_fd2, message, strlen(message), 0);
+                       
                         break;
             }
+        }
     }
 
     // Close connections
@@ -991,7 +1067,7 @@ void server_function() {
 }    
 
 //Main function to decide whether to run the server or the client
-int main(int argc, char *argv[]) {
+int main() {
     server_function();
     return 0;
 }
