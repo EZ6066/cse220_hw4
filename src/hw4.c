@@ -530,7 +530,7 @@ int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_r
     if (piece_type > 7 || piece_type < 1){
         return 300;
     }
-    if (piece_rotation > 4 || piece_rotation < 4){
+    if (piece_rotation > 4 || piece_rotation < 1){
         return 301;
     }
     if (piece_col > boardheight || piece_col < 0 || piece_row > boardwidth || piece_row < 0){
@@ -626,14 +626,14 @@ void server_function() {
     int in_game = 1;
     while (in_game) {
         // Receive message from Client 1 
+        char message[BUFFER_SIZE];
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd1, buffer, BUFFER_SIZE);
+        const char *ptr = buffer + 1;
             
             switch(buffer[0]){
                 
                 case 'B':
-                    char message[BUFFER_SIZE];
-
                     if (flag_b){//If B had already been called
                         if (flag_i){//If both B and I had been called
                             sprintf(message,"E 102");
@@ -648,9 +648,7 @@ void server_function() {
                     }
 
                     int width,height;
-                    // Pointer to parse the buffer after 'B'
-                    const char *ptr = buffer + 1;  // Skip 'S' character
-
+                
                     int num = sscanf(ptr, "%d %d", &width, &height);
                     if (width < 10 || height < 10 || num != 2){
                         sprintf(message,"E 200");
@@ -668,7 +666,6 @@ void server_function() {
                     break;
 
                 case 'I':
-                    char message[BUFFER_SIZE];
                     //If B is not called and I is intended to be called, prompt E 100
                     if(!flag_b){
                         sprintf(message,"E 100");
@@ -681,7 +678,7 @@ void server_function() {
                         break;
                     }
 
-                    int piece_type, piece_rotation, piece_col, piece_row;
+                    int piece_type, piece_rotation, piece_col, piece_row, num_char;
                     int ship_id = 0;
                     int is_valid = 0;
 
@@ -690,12 +687,12 @@ void server_function() {
                         send(conn_fd1, message, strlen(message), 0);
                         break;
                     }
-                    // Pointer to parse the buffer after 'I'
-                    const char *ptr = buffer + 1;  // Skip 'I' character
+                
 
-                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4) {
+                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d%n", &piece_type, &piece_rotation, &piece_col, &piece_row, &num_char) == 4) {
                     ship_id++;
 
+                    printf("%d %d %d %d\n",piece_type,piece_rotation,piece_col,piece_row);
                     // Validate each ship's position
                     is_valid = validate_ship(piece_type, piece_rotation, piece_col, piece_row, board1, ship_id);
                     if (is_valid != 1) {
@@ -705,15 +702,7 @@ void server_function() {
                         break;
                     }
 
-                    // Move the pointer forward past the parsed numbers
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip first number
-                    while (*ptr == ' ') ptr++;
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip second number
-                    while (*ptr == ' ') ptr++;
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip third number
-                    while (*ptr == ' ') ptr++;
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip fourth number
-                    while (*ptr == ' ') ptr++;
+                    ptr += num_char;
                     }
                     
                     if (ship_id == 5 && is_valid == 1) {
@@ -724,7 +713,6 @@ void server_function() {
                     
                     break;
                 case 'S':
-                    char message[BUFFER_SIZE];
 
                     if (!flag_b){
                         sprintf(message,"E 100");
@@ -739,8 +727,6 @@ void server_function() {
                     }
 
                     int row, col;
-                    // Pointer to parse the buffer after 'S'
-                    const char *ptr = buffer + 1;  // Skip 'S' character
 
                     if (sscanf(ptr, "%d %d", &row, &col) != 2){
                         sprintf(message,"E 202");
@@ -773,7 +759,6 @@ void server_function() {
                         break;
                     }
                 case 'Q':
-                    char message[BUFFER_SIZE];
 
                     if (!flag_b){
                         sprintf(message,"E 100");
@@ -793,7 +778,6 @@ void server_function() {
                     break;
 
                 case 'F':
-                    char message[BUFFER_SIZE];
 
                     if (!flag_b){
                         sprintf(message,"E 100");
@@ -836,10 +820,11 @@ void server_function() {
         
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd2, buffer, BUFFER_SIZE);
-                    switch(buffer[0]){
+        ptr = buffer + 1;
+
+            switch(buffer[0]){
                 
                 case 'B':
-                    char message[BUFFER_SIZE];
 
                     if (flag_b2){//If B had already been called
                         if (flag_i2){//If both B and I had been called
@@ -866,7 +851,6 @@ void server_function() {
                     break;
 
                 case 'I':
-                    char message[BUFFER_SIZE];
 
                     //If B is not called and I is intended to be called, prompt E 100
                     if(!flag_b2){
@@ -881,7 +865,7 @@ void server_function() {
                         break;
                     }
 
-                    int piece_type, piece_rotation, piece_col, piece_row;
+                    int piece_type, piece_rotation, piece_col, piece_row, num_char;
                     int ship_id = 0;
                     int is_valid = 0;
 
@@ -890,10 +874,8 @@ void server_function() {
                         send(conn_fd2, message, strlen(message), 0);
                         break;
                     }
-                    // Pointer to parse the buffer after 'I'
-                    const char *ptr = buffer + 1;  // Skip 'I' character
 
-                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4) {
+                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row, &num_char) == 4) {
                     ship_id++;
 
                     // Validate each ship's position
@@ -905,15 +887,7 @@ void server_function() {
                         break;
                     }
 
-                    // Move the pointer forward past the parsed numbers
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip first number
-                    while (*ptr == ' ') ptr++;
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip second number
-                    while (*ptr == ' ') ptr++;
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip third number
-                    while (*ptr == ' ') ptr++;
-                    while (*ptr && *ptr != ' ') ptr++;  // Skip fourth number
-                    while (*ptr == ' ') ptr++;
+                    ptr += num_char;
                     }
                     
                     if (ship_id == 5 && is_valid == 1) {
@@ -924,7 +898,6 @@ void server_function() {
                     
                     break;
                 case 'S':
-                    char message[BUFFER_SIZE];
 
                     if (!flag_b2){
                         sprintf(message,"E 100");
@@ -939,8 +912,6 @@ void server_function() {
                     }
 
                     int row, col;
-                    // Pointer to parse the buffer after 'S'
-                    const char *ptr = buffer + 1;  // Skip 'S' character
 
                     if (sscanf(ptr, "%d %d", &row, &col) != 2){
                         sprintf(message,"E 202");
@@ -973,7 +944,6 @@ void server_function() {
                         break;
                     }
                 case 'Q':
-                    char message[BUFFER_SIZE];
 
                     if (!flag_b2){
                         sprintf(message,"E 100");
@@ -993,7 +963,6 @@ void server_function() {
                     break;
 
                 case 'F':
-                    char message[BUFFER_SIZE];
 
                     if (!flag_b2){
                         sprintf(message,"E 100");
@@ -1078,7 +1047,7 @@ void client_function(int clientID) {
     // Start sending and receiving messages
     if (clientID == 1){
         while(1){
-            printf("Set up the board (B <Width_of_board Height_of_board>):");fflush(stdout);
+            printf("\nSet up the board (B <Width_of_board Height_of_board>):");
             fgets(buffer, BUFFER_SIZE, stdin);
             buffer[strlen(buffer)-1] = '\0';
             send(client_fd, buffer, strlen(buffer), 0);
@@ -1086,22 +1055,13 @@ void client_function(int clientID) {
             memset(buffer, 0, BUFFER_SIZE);
             read(client_fd, buffer, BUFFER_SIZE);
 
-            if (strcmp(buffer, "E 100") == 0){
-                printf("%s", buffer);fflush(stdout);
-                printf("Expected Begin packet.\n");fflush(stdout);
-            }
-            else if (strcmp(buffer, "E 200") == 0){
-                printf("%s", buffer);fflush(stdout);
-                printf("Invalid width/height/number of parameters. ");fflush(stdout);
-            }
-            else {
+            if (strcmp(buffer, "A") == 0){
+                printf("%s\n", buffer);
                 break;
             }
 
-        }
-
-        printf("%s", buffer);fflush(stdout);
-            
+            printf("%s\n", buffer);
+        }  
     }
     //Client 2
     else {
@@ -1116,25 +1076,18 @@ void client_function(int clientID) {
             memset(buffer, 0, BUFFER_SIZE);
             read(client_fd, buffer, BUFFER_SIZE);
 
-            if (strcmp(buffer, "E 100") == 0){
-                printf("%s", buffer);fflush(stdout);
-                printf("Expected Begin packet.\n");fflush(stdout);
+            if (strcmp(buffer, "A") == 0){
+            printf("%s\n", buffer);fflush(stdout);
+            break;
             }
-            else if (strcmp(buffer, "E 200") == 0){
-                printf("%s", buffer);fflush(stdout);
-                printf("Please enter only 'B'.\n");fflush(stdout);
-
-            }
-            else{
-                break;
-            }
+        
+            printf("%s", buffer);fflush(stdout);
         }
-        printf("%s", buffer);fflush(stdout);
     }
 
 
     while(1){
-        printf("Please initialize the ships(I 5x <Piece_type Piece_rotation Piece_column Piece_row>):");
+        printf("\nPlease initialize the ships(I 5x <Piece_type Piece_rotation Piece_column Piece_row>):");
         fgets(buffer, BUFFER_SIZE, stdin);
         buffer[strlen(buffer)-1] = '\0';
         send(client_fd, buffer, strlen(buffer), 0);
@@ -1179,18 +1132,18 @@ void client_function(int clientID) {
 // Main function to decide whether to run the server or the client
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("Usage: %s <server/client1/client2>\n", argv[0]);
+        printf("Usage: %s <server/1/2>\n", argv[0]);
         return 1;
     }
 
     if (strcmp(argv[1], "server") == 0) {
         server_function();
-    } else if (strcmp(argv[1], "client1") == 0) {
+    } else if (strcmp(argv[1], "1") == 0) {
         client_function(1);
-    } else if (strcmp(argv[1], "client2") == 0){
+    } else if (strcmp(argv[1], "2") == 0){
         client_function(2);
     } else {
-        printf("Invalid argument. Use 'server' or 'client1' or 'client2'.\n");
+        printf("Invalid argument. Use 'server' or '1' or '2'.\n");
         return 1;
     }
     fflush(stdout);
