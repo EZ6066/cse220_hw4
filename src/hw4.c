@@ -14,14 +14,16 @@ void client_function(int);
 int **create_board(int,int);
 void clear_board(int**);
 void free_board(int**);
-int place_ship(int, int, int, int, int**);
-int validate_ship(int, int, int, int, int**);
+int count_ship (int**);
+int validate_input(const char*);
+void query(char[], int**);
+int place_ship(int, int, int, int, int**, int);
+int validate_ship(int, int, int, int, int**, int);
 
 int **board1 = NULL;
 int **board2 = NULL;
 int boardheight = 0;
 int boardwidth = 0;
-
 
 int** create_board(int width, int height) {
     int **board = (int**)malloc(width * sizeof(int*));
@@ -46,23 +48,95 @@ void free_board(int **board) {
     free(board);
 }
 
-int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board){
+int count_ship(int **board) {
+    int ship_id[5];  // Array to store up to 5 unique numbers
+    int ship_num = 0;
+
+    for (int i = 0; i < boardheight; i++) {
+        for (int j = 0; j < boardwidth; j++) {
+            int num = board[i][j];
+
+            // Ignore -1 and 0
+            if (num == -2 || num == -1 || num == 0) {
+                continue;
+            }
+
+            // Check if num is already in ship_id
+            int is_unique = 1;  // Assume it's unique (1 = true)
+            for (int k = 0; k < ship_num; k++) {
+                if (ship_id[k] == num) {
+                    is_unique = 0;  // Not unique (0 = false)
+                    break;
+                }
+            }
+
+            // If it's a new unique number, add it to ship_id
+            if (is_unique && ship_num < 5) {
+                ship_id[ship_num++] = num;
+            }
+        }
+    }
+
+    return ship_num;
+}
+
+int validate_input(const char *buffer) {
+    int count = 0;
+    int number;
+    const char *ptr = buffer + 1; // Start after 'I'
+
+    // Use sscanf in a loop to extract each integer
+    while (sscanf(ptr, "%d", &number) == 1) {
+        count++;
+        
+        // Move the pointer forward past the integer we just read
+        while (*ptr && *ptr != ' ') {
+            ptr++;  // Skip over the current integer
+        }
+        // Skip any spaces between numbers
+        while (*ptr == ' ') {
+            ptr++;
+        }
+    }
+
+    // Check if we have exactly 20 numbers
+    return count == 20;
+}
+
+void query(char result[], int **board) {
+    for (int row = 0; row < boardheight; row++) {
+        for (int col = 0; col < boardwidth; col++) {
+            if (board[row][col] == -1) {
+                // Append "M row# col#"
+                sprintf(result + strlen(result), " M %d %d", row, col);
+            } else if (board[row][col] == -2) {
+                // Append "H row# col#"
+                sprintf(result + strlen(result), " H %d %d", row, col);
+            }
+        }
+    }
+}
+
+
+int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board, int ship_num){
         
     switch(piece_type){
         case '1':
             //Check if the ship can be fit in the board
             if (piece_col + 1 >= boardwidth || piece_row + 1 >= boardheight){
                 //Error 302 should be raise
+                return 302;
             }
             //Check if an overlap had occurred
             if (board[piece_row][piece_col] || board[piece_row+1][piece_col] || board[piece_row][piece_col+1] || board[piece_row+1][piece_col+1]){
                 //Error 303 should be raise
+                return 303;
             }
             //Since all roations have the same shape, there will be only one way to place this shape
-            board[piece_row][piece_col] == 1;
-            board[piece_row+1][piece_col] == 1;
-            board[piece_row][piece_col+1] == 1; 
-            board[piece_row+1][piece_col+1] == 1;
+            board[piece_row][piece_col] == ship_num;
+            board[piece_row+1][piece_col] == ship_num;
+            board[piece_row][piece_col+1] == ship_num; 
+            board[piece_row+1][piece_col+1] == ship_num;
 
             break;
         case '2':
@@ -71,12 +145,14 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can be fit in the board
                 if(piece_row + 3 >= boardheight){
                 //Error 302 should be raise
+                return 302;
                 }
 
                 for (int i = 0; i < 4; i++){
                     //Check if an overlap had occurred in the rows
                     if (board[piece_row+i][piece_col] == 1){
                         //Error 303 should be raise
+                        return 303;
                     }
                 }
 
@@ -91,11 +167,13 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can be fit in the board
                 if(piece_col + 3 >= boardwidth){
                 //Error 302 should be raise
+                return 302;
                 }
                 for (int i = 0; i < 4; i++){
                     //Check if an overlap had occurred in the cols
                     if (board[piece_row][piece_col+i] == 1){
                         //Error 303 should be raise
+                        return 303;
                     }
                 }
 
@@ -112,35 +190,39 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_row - 1 < 0 || piece_col + 2 >= boardwidth){
                     //Error 302 should be raise
+                    return 302;
                 }
                 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] || 
                     board[piece_row-1][piece_col+1] || board[piece_row-1][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row-1][piece_col+1] = 1;
-                board[piece_row-1][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row-1][piece_col+1] = ship_num;
+                board[piece_row-1][piece_col+1] = ship_num;
             } 
             //Rotation 2 and 4
             else {
                 //Check if the ship can fit in the board
                 if(piece_row + 2 >= boardheight || piece_col + 1 >= boardwidth){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row+1][piece_col] ||
                     board[piece_row+1][piece_col+1] || board[piece_row+2][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
-                board[piece_row][piece_col] = 1;
-                board[piece_row+1][piece_col] = 1;
-                board[piece_row+1][piece_col+1] = 1;
-                board[piece_row+2][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
+                board[piece_row+2][piece_col+1] = ship_num;
             }
             break;
         case '4':
@@ -149,18 +231,20 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row + 2 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row+1][piece_col] ||
                     board[piece_row+2][piece_col] || board[piece_row+2][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row+1][piece_col] = 1;
-                board[piece_row+2][piece_col] = 1;
-                board[piece_row+2][piece_col+1] =1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
+                board[piece_row+2][piece_col] = ship_num;
+                board[piece_row+2][piece_col+1] = ship_num;
 
             } 
             //Rotation 2
@@ -168,18 +252,20 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row][piece_col+2] || board[piece_row+1][piece_col]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row][piece_col+2] = 1;
-                board[piece_row+1][piece_col] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row][piece_col+2] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
 
             } 
             //Rotation 3
@@ -187,18 +273,20 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row + 2 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row+1][piece_col+1] || board[piece_row+2][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row+1][piece_col+1] = 1;
-                board[piece_row+2][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
+                board[piece_row+2][piece_col+1] = ship_num;
 
             } 
             //Rotation 4
@@ -206,18 +294,20 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 2 >= boardwidth || piece_row - 1 < 0){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row][piece_col+2] || board[piece_row-1][piece_col+2]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row][piece_col+2] = 1;
-                board[piece_row-1][piece_col+2] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row][piece_col+2] = ship_num;
+                board[piece_row-1][piece_col+2] = ship_num;
             }
 
             break;
@@ -227,36 +317,40 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row+1][piece_col+1] || board[piece_row+1][piece_col+2]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row+1][piece_col+1] = 1;
-                board[piece_row+1][piece_col+2] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col+2] = ship_num;
             }
             //Rotation 2 and 4
             else{
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row + 1 >= boardheight || piece_row - 1 < 0){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row-1][piece_col+1] || board[piece_row+1][piece_col]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row-1][piece_col+1] = 1;
-                board[piece_row+1][piece_col] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row-1][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
 
             }
             break;
@@ -266,72 +360,80 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row - 2 < 0){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row-1][piece_col+1] || board[piece_row-2][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row-1][piece_col+1] = 1;
-                board[piece_row-2][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row-1][piece_col+1] = ship_num;
+                board[piece_row-2][piece_col+1] = ship_num;
             } 
             //Rotation 2
             else if (piece_rotation == 2){
                 //Check if the ship can fit in the board
                 if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row+1][piece_col] ||
                     board[piece_row+1][piece_col+1] || board[piece_row+1][piece_col+2]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row+1][piece_col] = 1;
-                board[piece_row+1][piece_col+1] = 1;
-                board[piece_row+1][piece_col+2] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col+2] = ship_num;
             }
             //Rotation 3
             else if (piece_rotation == 3){
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row + 2 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row+1][piece_col] || board[piece_row+2][piece_col]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row+1][piece_col] = 1;
-                board[piece_row+2][piece_col] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
+                board[piece_row+2][piece_col] = ship_num;
             }
             //Rotation 4
             else {
                 //Check if the ship can fit in the board
                 if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row][piece_col+2] || board[piece_row+1][piece_col+2]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row][piece_col+2] = 1;
-                board[piece_row+1][piece_col+2] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row][piece_col+2] = ship_num;
+                board[piece_row+1][piece_col+2] = ship_num;
             }
             break;
         case '7':
@@ -340,18 +442,20 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 2 >= boardwidth || piece_row + 1 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row][piece_col+2] || board[piece_row+1][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row][piece_col+2] = 1;
-                board[piece_row+1][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row][piece_col+2] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
 
             }
             //Rotation 2
@@ -359,36 +463,40 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row + 1 >= boardheight || piece_row - 1 < 0){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row-1][piece_col+1] || board[piece_row+1][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row-1][piece_col+1] = 1;
-                board[piece_row+1][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row-1][piece_col+1] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
             }
             //Rotation 3
             else if (piece_rotation == 3){
                 //Check if the ship can fit in the board
-                if (piece_col + 2 >= boardwidth || piece_row - 1 < 0>){
+                if (piece_col + 2 >= boardwidth || piece_row - 1 < 0){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] ||
                     board[piece_row][piece_col+2] || board[piece_row-1][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row][piece_col+1] = 1;
-                board[piece_row][piece_col+2] = 1;
-                board[piece_row-1][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row][piece_col+1] = ship_num;
+                board[piece_row][piece_col+2] = ship_num;
+                board[piece_row-1][piece_col+1] = ship_num;
 
             }
             //Rotation 4
@@ -396,32 +504,38 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 //Check if the ship can fit in the board
                 if (piece_col + 1 >= boardwidth || piece_row + 2 >= boardheight){
                     //Error 302 should be raise
+                    return 302;
                 }
 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row+1][piece_col] ||
                     board[piece_row+2][piece_col] || board[piece_row+1][piece_col+1]){
                         //Error 303 should be raise
+                        return 303;
                 }
 
-                board[piece_row][piece_col] = 1;
-                board[piece_row+1][piece_col] = 1;
-                board[piece_row+2][piece_col] = 1;
-                board[piece_row+1][piece_col+1] = 1;
+                board[piece_row][piece_col] = ship_num;
+                board[piece_row+1][piece_col] = ship_num;
+                board[piece_row+2][piece_col] = ship_num;
+                board[piece_row+1][piece_col+1] = ship_num;
             }
             break;
     }
     return 1;
 }
 
-int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board){
-    if (piece_type > 7 || piece_type < 1 || piece_rotation > 4 || piece_rotation < 4 ||
-        piece_col > boardheight || piece_col < 0 || piece_row > boardwidth || piece_row < 0){
-            return 0;
-        }
-
-        
-    return 1;
+int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board, int ship_num){
+    if (piece_type > 7 || piece_type < 1){
+        return 300;
+    }
+    if (piece_rotation > 4 || piece_rotation < 4){
+        return 301;
+    }
+    if (piece_col > boardheight || piece_col < 0 || piece_row > boardwidth || piece_row < 0){
+        return 302;
+    }
+    
+    return place_ship(piece_type, piece_rotation, piece_col, piece_row, board, ship_num);
 
 }
 // Function to handle the server
@@ -513,9 +627,12 @@ void server_function() {
                     char message[BUFFER_SIZE];
                     int width,height;
                     char command;
-                    sscanf(buffer, "%c %d %d", &command, &width, &height);
+
+                    // Pointer to parse the buffer after 'I'
+                    const char *ptr = buffer + 1;  // Skip 'I' character
+                    sscanf(ptr, "%d %d", &command, &width, &height);
                     if (width < 10 || height < 10){
-                        sprintf(message,"Invalid");fflush(stdout);
+                        sprintf(message,"Invalid");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
                     else{
@@ -526,17 +643,96 @@ void server_function() {
                         sprintf(message, "Board of %dx%d created.", width, height);fflush(stdout);
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                     }
-                case 'I':
-                    int piece_type, piece_rotation, piece_col, piece_row;
-                    int ship_count = 0;
-                    
-                    while(sscanf(buffer, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4 &&){
-                        ship_count++;
-                    }
-                    
-                    
                     break;
 
+                case 'I':
+                    char message[BUFFER_SIZE];
+                    int piece_type, piece_rotation, piece_col, piece_row;
+                    int ship_id = 0;
+                    int is_valid = 0;
+
+                    if (!validate_input){
+                        sprintf(message,"E 201");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+                    // Pointer to parse the buffer after 'I'
+                    const char *ptr = buffer + 1;  // Skip 'I' character
+
+                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_col, &piece_row) == 4) {
+                    ship_id++;
+
+                    // Validate each ship's position
+                    is_valid = validate_ship(piece_type, piece_rotation, piece_col, piece_row, board1, ship_id);
+                    if (is_valid != 1) {
+                        sprintf(message, "E %d", is_valid);
+                        send(conn_fd1, message, strlen(message), 0);
+                        clear_board(board1);
+                        break;
+                    }
+
+                    // Move the pointer forward past the parsed numbers
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip first number
+                    while (*ptr == ' ') ptr++;
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip second number
+                    while (*ptr == ' ') ptr++;
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip third number
+                    while (*ptr == ' ') ptr++;
+                    while (*ptr && *ptr != ' ') ptr++;  // Skip fourth number
+                    while (*ptr == ' ') ptr++;
+                    }
+                    
+                    if (ship_id == 5 && is_valid == 1) {
+                        sprintf(message, "A");  // Acknowledge success
+                        send(conn_fd1, message, strlen(message), 0);
+                    }
+                    
+                    break;
+                case 'S':
+                    char message[BUFFER_SIZE];
+                    int row, col;
+                    // Pointer to parse the buffer after 'I'
+                    const char *ptr = buffer + 1;  // Skip 'I' character
+
+                    if (sscanf(ptr, "%d %d", &width, &height) != 2){
+                        sprintf(message,"E 202");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (row >= boardwidth || row < 0 || col >= boardheight || col < 0){
+                        sprintf(message,"E 400");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (board2[row][col] == -1 || board2[row][col] == -2){
+                        sprintf(message,"E 401");
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+
+                    if (board2[row][col] == 0){
+                        board2[row][col] = -1;
+                        sprintf(message,"R %d M", count_ship(board2));
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+                    else{
+                        board2[row][col] == -2;
+                        sprintf(message,"R %d H", count_ship(board2));
+                        send(conn_fd1, message, strlen(message), 0);
+                        break;
+                    }
+                case 'Q':
+                    char message[BUFFER_SIZE];
+                    sprintf(message, "G %d", count_ship(board2));
+                    query(message, board2);
+                    send(conn_fd1, message, strlen(message), 0);
+                    break;
+
+                case 'F':
+                    break;
                 default:
 
             }
@@ -545,7 +741,7 @@ void server_function() {
         // Receive message from Client 2 and send to Client 1
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd2, buffer, BUFFER_SIZE);
-         switch(buffer[0]){
+        switch(buffer[0]){
                 
                 case 'B':
 
