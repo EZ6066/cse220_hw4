@@ -29,9 +29,9 @@ int initialize2 = 0;
 
 
 int** create_board(int width, int height) {
-    int **board = (int**)calloc(height, sizeof(int*));
+    int **board = (int**)malloc(height* sizeof(int*));
     for (int i = 0; i < height; i++) {
-        board[i] = (int*)calloc(width, sizeof(int));  // Allocate and initialize to 0
+        board[i] = (int*)malloc(width* sizeof(int));  // Allocate and initialize to 0
     }
     return board;
 }
@@ -61,14 +61,15 @@ void free_board(int **board) {
 }
 
 int count_ship(int **board) {
-    int ship_id[5];  // Array to store up to 5 unique numbers
+    int ship_id[5] = {0};  // Array to store up to 5 unique numbers
     int ship_num = 0;
+    printBoard(board);
 
     for (int i = 0; i < boardheight; i++) {
         for (int j = 0; j < boardwidth; j++) {
             int num = board[i][j];
 
-            // Ignore -1 and 0
+            // Ignore -2 and -1 and 0
             if (num == -2 || num == -1 || num == 0) {
                 continue;
             }
@@ -84,7 +85,8 @@ int count_ship(int **board) {
 
             // If it's a new unique number, add it to ship_id
             if (is_unique && ship_num < 5) {
-                ship_id[ship_num++] = num;
+                ship_id[ship_num] = num;
+                ship_num++;
             }
         }
     }
@@ -704,6 +706,8 @@ void server_function() {
                     int is_valid = 0;
                     char stri,st;
                     int n[20] = {0};
+                    int array[5] = {0};
+                    int size = 0;
                     
                     sscanf(buffer, "%c %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %c",&stri, &n[0], &n[1], &n[2], &n[3], &n[4], &n[5], 
                     &n[6], &n[7], &n[8], &n[9], &n[10], &n[11], &n[12], &n[13], &n[14], &n[15], &n[16], &n[17], &n[18], &n[19], &st);
@@ -721,12 +725,24 @@ void server_function() {
                         printf("Is_valid:%d\n", is_valid);
                         printf("%d %d %d %d\n",n[i], n[i+1], n[i+2], n[i+3]);
                         if (is_valid != 1) {
-                            sprintf(message, "E %d", is_valid);  // Acknowledge success
-                            send(conn_fd1, message, strlen(message), 0);
-                            clear_board(board1);
-                            break;
+                            array[size] = is_valid;
+                            size++;
                         }
                         ship_id++;
+                    }
+
+                    if(size){
+                        int min = array[0];
+                        for (int i = 1; i < size; i++){
+                            if (array[i] < min){
+                                min = array[i];
+                            }
+                        }
+                            sprintf(message, "E %d", min);  // Acknowledge success
+                            send(conn_fd1, message, strlen(message), 0);
+                            clear_board(board1);
+                            ship_id = 0;
+                            break;
                     }
 
                    
@@ -910,6 +926,8 @@ void server_function() {
                     int is_valid = 0;
                     char stri,st;
                     int n[20] = {0};
+                    int array[5] = {0};
+                    int size = 0;
                     
                     sscanf(buffer, "%c %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %c",&stri, &n[0], &n[1], &n[2], &n[3], &n[4], &n[5], 
                     &n[6], &n[7], &n[8], &n[9], &n[10], &n[11], &n[12], &n[13], &n[14], &n[15], &n[16], &n[17], &n[18], &n[19], &st);
@@ -927,12 +945,24 @@ void server_function() {
                         printf("Is_valid:%d\n", is_valid);
                         printf("%d %d %d %d\n",n[i], n[i+1], n[i+2], n[i+3]);
                         if (is_valid != 1) {
-                            sprintf(message, "E %d", is_valid);  // Acknowledge success
-                            send(conn_fd2, message, strlen(message), 0);
-                            clear_board(board2);
-                            break;
+                            array[size] = is_valid;
+                            size++;
                         }
                         ship_id++;
+                    }
+
+                    if(size){
+                        int min = array[0];
+                        for (int i = 1; i < size; i++){
+                            if (array[i] < min){
+                                min = array[i];
+                            }
+                        }
+                            sprintf(message, "E %d", min);  // Acknowledge success
+                            send(conn_fd2, message, strlen(message), 0);
+                            clear_board(board2);
+                            ship_id == 0;
+                            break;
                     }
 
                    
@@ -1091,7 +1121,7 @@ void server_function() {
         sprintf(message,"H 1");
         send(conn_fd1, message, strlen(message), 0);
     }
-    else{
+    else if (win == 2){
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd1, buffer, BUFFER_SIZE); 
         sprintf(message,"H 0");
@@ -1103,7 +1133,6 @@ void server_function() {
         
     }
    
-    
 
     // Close connections
     close(conn_fd1);
