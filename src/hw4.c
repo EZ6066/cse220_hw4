@@ -83,26 +83,12 @@ int count_ship(int **board) {
 }
 
 int validate_input(const char *buffer) {
-    int count = 0;
-    int number;
-    const char *ptr = buffer + 1; // Start after 'I'
-
-    // Use sscanf in a loop to extract each integer
-    while (sscanf(ptr, "%d", &number) == 1) {
-        count++;
-        
-        // Move the pointer forward past the integer we just read
-        while (*ptr && *ptr != ' ') {
-            ptr++;  // Skip over the current integer
-        }
-        // Skip any spaces between numbers
-        while (*ptr == ' ') {
-            ptr++;
-        }
-    }
-
+    int n[20] = {0};
+    char command;
+    char st;
     // Check if we have exactly 20 numbers
-    return count == 20;
+    return sscanf(buffer, "%c %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %c",&command, &n[0], &n[1], &n[2], &n[3], &n[4], &n[5], 
+                  &n[6], &n[7], &n[8], &n[9], &n[10], &n[11], &n[12], &n[13], &n[14], &n[15], &n[16], &n[17], &n[18], &n[19], &st) == 21;
 }
 
 void query(char result[], int **board) {
@@ -135,10 +121,10 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 return 303;
             }
             //Since all roations have the same shape, there will be only one way to place this shape
-            board[piece_row][piece_col] == ship_num;
-            board[piece_row+1][piece_col] == ship_num;
-            board[piece_row][piece_col+1] == ship_num; 
-            board[piece_row+1][piece_col+1] == ship_num;
+            board[piece_row][piece_col] = ship_num;
+            board[piece_row+1][piece_col] = ship_num;
+            board[piece_row][piece_col+1] = ship_num; 
+            board[piece_row+1][piece_col+1] = ship_num;
 
             break;
         case '2':
@@ -629,11 +615,12 @@ void server_function() {
         char message[BUFFER_SIZE] = {0};
         memset(message, 0, BUFFER_SIZE);
         memset(buffer, 0, BUFFER_SIZE);
-        const char *ptr = buffer + 1;
-        if (turn == 1){
+        
+        if (turn == 1 && conn_fd1 >= 0){
         // Receive message from Client 1 
 
         read(conn_fd1, buffer, BUFFER_SIZE);    
+        const char *ptr = buffer + 1;
             switch(buffer[0]){
                 
                 case 'B':
@@ -650,10 +637,10 @@ void server_function() {
                             break;
                         }
                     }
-
+                    char str;
                     int width,height;
                 
-                    int num = sscanf(ptr, "%d %d", &width, &height);
+                    int num = sscanf(ptr, "%d %d %c", &width, &height, &str);
                     if (width < 10 || height < 10 || num != 2){
                        
                         sprintf(message,"E 200");
@@ -661,7 +648,6 @@ void server_function() {
                         break;
                        
                     }
-                    else{
                         flag_b = 1;
                         board1 = create_board(width,height);
                         board2 = create_board(width,height);
@@ -669,14 +655,13 @@ void server_function() {
                         boardheight = height;
                        
                         turn = 2;
+                        //sprintf(message, "W:%d H:%d N:%d",&width, &height, &num);
                         sprintf(message, "A");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
                        
-                    }
                     break;
 
                 case 'I':
-                   
 
                     //If B is not called and I is intended to be called, prompt E 100
                     if(!flag_b){
@@ -690,33 +675,34 @@ void server_function() {
                         break;
                     }
 
-                    int piece_type, piece_rotation, piece_col, piece_row, num_char;
-                    int ship_id = 0;
-                    int is_valid = 0;
-
-                    if (!validate_input){
+                    if (!validate_input(buffer)){
                         sprintf(message,"E 201");
                         send(conn_fd1, message, strlen(message), 0);
                         break;
                     }
-                
-
-                    while (ship_id < 5 && sscanf(ptr, "%d %d %d %d%n", &piece_type, &piece_rotation, &piece_col, &piece_row, &num_char) == 4) {
-                    ship_id++;
-
-                    printf("%d %d %d %d\n",piece_type,piece_rotation,piece_col,piece_row);
-                    // Validate each ship's position
-                    is_valid = validate_ship(piece_type, piece_rotation, piece_col, piece_row, board1, ship_id);
-                    if (is_valid != 1) {
-                        sprintf(message, "E %d", is_valid);
-                        send(conn_fd1, message, strlen(message), 0);
-                        clear_board(board1);
-                        break;
-                    }
-
-                    ptr += num_char;
-                    }
                     
+                    int ship_id = 1;
+                    int is_valid = 0;
+                    char stri,st;
+                    int n[20] = {0};
+                    
+
+                    sscanf(buffer, "%c %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %c",&stri, &n[0], &n[1], &n[2], &n[3], &n[4], &n[5], 
+                    &n[6], &n[7], &n[8], &n[9], &n[10], &n[11], &n[12], &n[13], &n[14], &n[15], &n[16], &n[17], &n[18], &n[19], &st);
+                    
+                    for (int i = 0; i < 20; i+=4){
+                        is_valid = validate_ship(n[i], n[i+1], n[i+2], n[i+3], board1, ship_id);
+                        printf("i;%d\n",i);
+                        printf("Is_valid:%d\n", is_valid);
+                        if (is_valid != 1) {
+                            sprintf(message, "E %d", is_valid);  // Acknowledge success
+                            send(conn_fd1, message, strlen(message), 0);
+                            clear_board(board1);
+                            break;
+                        }
+                        ship_id++;
+                    }
+                   
                     if (ship_id == 5 && is_valid == 1) {
                         flag_i = 1;
                        
@@ -833,8 +819,7 @@ void server_function() {
         
         memset(buffer, 0, BUFFER_SIZE);
         read(conn_fd2, buffer, BUFFER_SIZE);
-        ptr = buffer + 1;
-        
+        const char *ptr = buffer + 1;
         
             switch(buffer[0]){
                 
@@ -861,7 +846,7 @@ void server_function() {
                     }
 
                     flag_b2 = 1;
-                   turn = 1;
+                    turn = 1;
                     sprintf(message, "A");
                     send(conn_fd2, message, strlen(message), 0);
                    
@@ -892,7 +877,7 @@ void server_function() {
                     int ship_id = 0;
                     int is_valid = 0;
 
-                    if (!validate_input){
+                    if (!(validate_input(buffer))){
                        
                         sprintf(message,"E 201");
                         send(conn_fd2, message, strlen(message), 0);
