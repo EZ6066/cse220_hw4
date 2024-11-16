@@ -637,7 +637,6 @@ void server_function() {
             switch(buffer[0]){
                 
                 case 'B':
-                   
 
                     if (flag_b){//If B had already been called
                         if (flag_i){//If both B and I had been called
@@ -659,6 +658,7 @@ void server_function() {
                        
                         sprintf(message,"E 200");
                         send(conn_fd1, message, strlen(message), 0);  // Send message to Client 1
+                        break;
                        
                     }
                     else{
