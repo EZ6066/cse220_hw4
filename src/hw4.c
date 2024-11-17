@@ -24,8 +24,12 @@ int **board1 = NULL;
 int **board2 = NULL;
 int boardheight = 0;
 int boardwidth = 0;
-int initialize1 = 0;
-int initialize2 = 0;
+
+
+char bi1[BUFFER_SIZE] = {0};
+char bi2[BUFFER_SIZE] = {0};
+int **board1i = NULL;
+int **board2i = NULL;
 
 
 int** create_board(int width, int height) {
@@ -36,6 +40,27 @@ int** create_board(int width, int height) {
     return board;
 }
 
+char* getBoardString(int **board) {
+    // Estimate the required buffer size
+    int bufferSize = boardheight * boardwidth * 4 + boardheight + 1; // Account for spaces and newlines
+    char *result = (char *)malloc(bufferSize * sizeof(char));
+    if (result == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return NULL;
+    }
+    result[0] = '\0'; // Initialize as empty string
+
+    char temp[16];
+    for (int i = 0; i < boardheight; i++) {
+        for (int j = 0; j < boardwidth; j++) {
+            sprintf(temp, "%d ", board[i][j]);
+            strcat(result, temp);
+        }
+        strcat(result, "\n");
+    }
+
+    return result;
+}
 void printBoard(int **board) {
     for (int i = 0; i < boardheight; i++) {
         for (int j = 0; j < boardwidth; j++) {
@@ -51,6 +76,7 @@ void clear_board(int **board) {
             board[i][j] = 0;  // Set each element to 0
         }
     }
+
 }
 
 void free_board(int **board) {
@@ -123,7 +149,7 @@ void query(char *result, int **board) {
 
 
 int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row, int **board, int ship_num){
-
+    
         
     switch(piece_type){
         case 1:
@@ -164,7 +190,7 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
 
                 for (int i = 0; i < 4; i++){
                     //Place the ship into the board
-                    board[piece_row+i][piece_col] = 1;
+                    board[piece_row+i][piece_col] = ship_num;
                 }
                 
             }
@@ -185,7 +211,7 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
 
                 for (int i = 0; i < 4; i++){
                     //Place the ship into the board
-                    board[piece_row][piece_col+i] = 1;
+                    board[piece_row][piece_col+i] = ship_num;
                 }
             }
 
@@ -201,7 +227,7 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 
                 //Check if an overlap had occurred
                 if (board[piece_row][piece_col] || board[piece_row][piece_col+1] || 
-                    board[piece_row-1][piece_col+1] || board[piece_row-1][piece_col+1]){
+                    board[piece_row-1][piece_col+1] || board[piece_row-1][piece_col+2]){
                         //Error 303 should be raise
                         return 303;
                 }
@@ -209,7 +235,7 @@ int place_ship(int piece_type, int piece_rotation, int piece_col, int piece_row,
                 board[piece_row][piece_col] = ship_num;
                 board[piece_row][piece_col+1] = ship_num;
                 board[piece_row-1][piece_col+1] = ship_num;
-                board[piece_row-1][piece_col+1] = ship_num;
+                board[piece_row-1][piece_col+2] = ship_num;
             } 
             //Rotation 2 and 4
             else {
@@ -537,7 +563,7 @@ int validate_ship(int piece_type, int piece_rotation, int piece_col, int piece_r
     if (piece_rotation > 4 || piece_rotation < 1){
         return 301;
     }
-    if (piece_col >= boardheight || piece_col < 0 || piece_row >= boardwidth || piece_row < 0){
+    if (piece_col >= boardwidth || piece_col < 0 || piece_row >= boardheight || piece_row < 0){
         return 302;
     }
 
@@ -635,7 +661,7 @@ void server_function() {
         memset(message, 0, BUFFER_SIZE);
         memset(buffer, 0, BUFFER_SIZE);
         
-        if (turn == 1 && conn_fd1 >= 0){
+        if (turn == 1){
         // Receive message from Client 1 
 
         read(conn_fd1, buffer, BUFFER_SIZE);    
@@ -670,6 +696,9 @@ void server_function() {
                         flag_b = 1;
                         board1 = create_board(width,height);
                         board2 = create_board(width,height);
+                        board1i = create_board(width,height);
+                        board2i = create_board(width,height);
+
                         boardwidth = width;
                         boardheight = height;
                        
@@ -714,27 +743,30 @@ void server_function() {
                     for (int i = 0; i < 20; i+=4){
                         
                         is_valid = validate_ship(n[i], n[i+1], n[i+2], n[i+3], board1, ship_id);
-                        
+                        validate_ship(n[i], n[i+1], n[i+2], n[i+3], board1i, ship_id);
+                        ship_id++;
                         if (is_valid != 1) {
                             if (is_valid < min){
                                 min = is_valid;
                             }
                         }
-                        ship_id++;
+                        
                     }
 
                     if(min != 1000){
                         
-                        sprintf(message, "E %d", min);  // Acknowledge success
+                        sprintf(message, "E %d", min);  
                         send(conn_fd1, message, strlen(message), 0);
                         clear_board(board1);
-                        ship_id = 0;
+                        clear_board(board1i);
                         break;
                     }
                     else  {
                         flag_i = 1;
                        
                        turn = 2;
+                       //sprintf(message, "%s W:%d H:%d", buffer, boardwidth, boardheight);
+                        strcpy(bi1,buffer);
                         sprintf(message, "A");  // Acknowledge success
                         send(conn_fd1, message, strlen(message), 0);
                        
@@ -780,7 +812,13 @@ void server_function() {
                     if (board2[row][col] == 0){
                         board2[row][col] = -1;
                         turn = 2;
+                        // if (count_ship(board2) == 4){
+                        //     sprintf(message, getBoardString(board2));
+                        //     send(conn_fd1, message, strlen(message), 0);
+                        // break;
+                        // }
                         sprintf(message,"R %d M", count_ship(board2));
+                        
                         send(conn_fd1, message, strlen(message), 0);
                         break;
                     }
@@ -789,6 +827,12 @@ void server_function() {
                         board2[row][col] = -2;
                         turn = 2;
                         
+//                          if (count_ship(board2) == 4){
+//                             char *boardStr = getBoardString(board2i); // Get the board as a string
+// sprintf(message, "%s\n W:%d H:%d\n %s W:%d H:%d", bi2, boardwidth, boardheight, boardStr);
+//                             send(conn_fd1, message, strlen(message), 0);
+//                         break;
+//                         }
                         sprintf(message,"R %d H", count_ship(board2));
                         send(conn_fd1, message, strlen(message), 0);
                         if (!count_ship(board2)){
@@ -825,11 +869,9 @@ void server_function() {
                     sprintf(message, "H 1");
                     send(conn_fd2, message, strlen(message), 0);
                    
-
                     in_game = 0;
                     break;
                 default:
-
 
                     if (!flag_b){
                         sprintf(message,"E 100");
@@ -892,7 +934,7 @@ void server_function() {
                     //If B is not called and I is intended to be called, prompt E 100
                     if(!flag_b2){
                         sprintf(message,"E 100");
-                        send(conn_fd1, message, strlen(message), 0);
+                        send(conn_fd2, message, strlen(message), 0);
                         break;
                     }
                     if (flag_i2){
@@ -907,50 +949,46 @@ void server_function() {
                         break;
                     }
                     
-                    int ship_id = 1;
+                    int ship_id2 = 1;
                     int is_valid = 0;
                     char stri,st;
                     int n[20] = {0};
-                    int array[5] = {0};
-                    int size = 0;
+                    int min = 1000;
                     
                     sscanf(buffer, "%c %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %c",&stri, &n[0], &n[1], &n[2], &n[3], &n[4], &n[5], 
                     &n[6], &n[7], &n[8], &n[9], &n[10], &n[11], &n[12], &n[13], &n[14], &n[15], &n[16], &n[17], &n[18], &n[19], &st);
 
                     for (int i = 0; i < 20; i+=4){
                
-                        is_valid = validate_ship(n[i], n[i+1], n[i+2], n[i+3], board2, ship_id);
-                        
-      
-                        
-                        
+                        is_valid = validate_ship(n[i], n[i+1], n[i+2], n[i+3], board2, ship_id2);
+                        validate_ship(n[i], n[i+1], n[i+2], n[i+3], board2i, ship_id2);
+                        ship_id2++;
                
                         if (is_valid != 1) {
-                            array[size] = is_valid;
-                            size++;
+                            if (is_valid < min){
+                                min = is_valid;
+                            }
+                            
                         }
-                        ship_id++;
+                        
                     }
 
-                    if(size){
-                        int min = array[0];
-                        for (int i = 1; i < size; i++){
-                            if (array[i] < min){
-                                min = array[i];
-                            }
-                        }
-                            sprintf(message, "E %d", min);  // Acknowledge success
-                            send(conn_fd2, message, strlen(message), 0);
-                            clear_board(board2);
-                            ship_id == 0;
-                            break;
+                    if(min != 1000){
+                        sprintf(message, "E %d", min); 
+                        send(conn_fd2, message, strlen(message), 0);
+                        clear_board(board2);
+                        clear_board(board2i);
+                        break;
                     }
 
                    
-                    if (ship_id == 6 && is_valid == 1) {
+                    else {
                         flag_i2 = 1;
                        
                        turn = 1;
+                       
+                       //sprintf(message, "%s W:%d H:%d", buffer, boardwidth, boardheight);
+                       strcpy(bi2,buffer);
                         sprintf(message, "A");  // Acknowledge success
                         send(conn_fd2, message, strlen(message), 0);
                        
@@ -1007,15 +1045,28 @@ void server_function() {
                         board1[row][col] = -1;
                        
                        turn = 1;
+                    //    if (count_ship(board1) == 4){
+                    //         sprintf(message, getBoardString(board1));
+                    //         send(conn_fd2, message, strlen(message), 0);
+                    //     break;
+                    //     }
                         sprintf(message,"R %d M", count_ship(board1));
+                        
                         send(conn_fd2, message, strlen(message), 0);
                        
                         break;
                     }
                     else{
                         board1[row][col] = -2;
+
                        
                        turn = 1;
+//                           if (count_ship(board1) == 4){
+// char *boardStr = getBoardString(board1i); // Get the board as a string
+// sprintf(message, "%s\n W:%d H:%d\n %s W:%d H:%d", bi1, boardwidth, boardheight, boardStr);
+//                             send(conn_fd2, message, strlen(message), 0);
+//                         break;
+//                         }
                         sprintf(message,"R %d H", count_ship(board1));
                         send(conn_fd2, message, strlen(message), 0);
                         if (!count_ship(board1)){
@@ -1113,7 +1164,7 @@ void server_function() {
         send(conn_fd2, message, strlen(message), 0);
         
     }
-
+    
     // Close connections
     close(conn_fd1);
     close(conn_fd2);
